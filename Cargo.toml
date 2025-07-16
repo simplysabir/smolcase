@@ -34,3 +34,4 @@ dirs = "5.0"
 toml = "0.8"
 chrono = { version = "0.4.41", features = ["serde"]}
 sha2 = "0.10"
+tempfile = "3.20.0"

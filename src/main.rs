@@ -3,12 +3,12 @@ use clap::{Parser, Subcommand};
 use colored::*;
 use std::path::PathBuf;
 
-mod crypto;
-mod config;
 mod commands;
+mod config;
+mod crypto;
 mod git;
-mod ui;
 mod types;
+mod ui;
 
 use commands::*;
 
@@ -105,15 +105,11 @@ enum UserAction {
         email: Option<String>,
     },
     /// Remove a user
-    Remove {
-        username: String,
-    },
+    Remove { username: String },
     /// List all users
     List,
     /// Reset user password
-    Reset {
-        username: String,
-    },
+    Reset { username: String },
 }
 
 #[derive(Subcommand)]
@@ -125,21 +121,13 @@ enum GroupAction {
         description: Option<String>,
     },
     /// Delete a group
-    Delete {
-        name: String,
-    },
+    Delete { name: String },
     /// List all groups
     List,
     /// Add users to a group
-    AddUser {
-        group: String,
-        users: Vec<String>,
-    },
+    AddUser { group: String, users: Vec<String> },
     /// Remove users from a group
-    RemoveUser {
-        group: String,
-        users: Vec<String>,
-    },
+    RemoveUser { group: String, users: Vec<String> },
 }
 
 #[tokio::main]
@@ -148,9 +136,12 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::Init { name, git } => init::execute(name, git).await,
-        Commands::Add { key, value, users, groups } => {
-            add::execute(key, value, users, groups).await
-        }
+        Commands::Add {
+            key,
+            value,
+            users,
+            groups,
+        } => add::execute(key, value, users, groups).await,
         Commands::Remove { key } => remove::execute(key).await,
         Commands::List => list::execute().await,
         Commands::Get { key } => get::execute(key).await,
