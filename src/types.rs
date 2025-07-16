@@ -8,10 +8,11 @@ pub struct SmolcaseConfig {
     pub project_name: String,
     pub created_at: String,
     pub admin_key_hash: String,
+    pub master_key_hash: String,
     pub users: HashMap<String, User>,
     pub groups: HashMap<String, Group>,
     pub secrets: HashMap<String, Secret>,
-    pub encrypted_data: String, // Base64 encoded encrypted blob
+    pub encrypted_data: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,7 +32,7 @@ pub struct Group {
     pub id: Uuid,
     pub name: String,
     pub description: Option<String>,
-    pub members: Vec<String>, // usernames
+    pub members: Vec<String>,
     pub created_at: String,
 }
 

@@ -11,24 +11,15 @@ pub async fn execute(key: String) -> Result<()> {
         return Err(anyhow!("Secret '{}' not found", key));
     }
     
-    let password = UI::password("Password")?;
+    let user_password = UI::password("Your password")?;
     
     let mut user_found = false;
-    for (username, user) in &config.users {
-        if CryptoManager::verify_password(&password, &user.password_hash)? {
+    let mut username = String::new();
+    
+    for (uname, user) in &config.users {
+        if CryptoManager::verify_password(&user_password, &user.password_hash)? {
             user_found = true;
-            
-            let secret = &config.secrets[&key];
-            let has_permission = secret.permissions.users.is_empty() && secret.permissions.groups.is_empty() ||
-                secret.permissions.users.contains(username) ||
-                secret.permissions.groups.iter().any(|group| {
-                    config.groups.get(group).map_or(false, |g| g.members.contains(username))
-                });
-            
-            if !has_permission {
-                return Err(anyhow!("Access denied"));
-            }
-            
+            username = uname.clone();
             break;
         }
     }
@@ -37,9 +28,24 @@ pub async fn execute(key: String) -> Result<()> {
         return Err(anyhow!("Invalid password"));
     }
     
-    let admin_user = config.users.values().find(|u| u.is_admin).unwrap();
-    let admin_key = CryptoManager::derive_key(&password, &admin_user.salt)?;
-    let decrypted_data = CryptoManager::decrypt_data(&config.encrypted_data, &admin_key)?;
+    let secret = &config.secrets[&key];
+    let has_permission = secret.permissions.users.is_empty() && secret.permissions.groups.is_empty() ||
+        secret.permissions.users.contains(&username) ||
+        secret.permissions.groups.iter().any(|group| {
+            config.groups.get(group).map_or(false, |g| g.members.contains(&username))
+        });
+    
+    if !has_permission {
+        return Err(anyhow!("Access denied"));
+    }
+    
+    let master_key = UI::password("Master decryption key")?;
+    if !CryptoManager::verify_password(&master_key, &config.master_key_hash)? {
+        return Err(anyhow!("Invalid master key"));
+    }
+    
+    let master_encryption_key = CryptoManager::derive_key_from_password(&master_key)?;
+    let decrypted_data = CryptoManager::decrypt_data(&config.encrypted_data, &master_encryption_key)?;
     let secrets: EncryptedSecrets = serde_json::from_slice(&decrypted_data)?;
     
     if let Some(secret_value) = secrets.secrets.iter().find(|s| s.key == key) {

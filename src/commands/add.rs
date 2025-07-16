@@ -1,9 +1,9 @@
 use anyhow::{anyhow, Result};
-use base64::Engine;
 use chrono::Utc;
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
+use base64::Engine;
 
 use crate::config::ConfigManager;
 use crate::crypto::CryptoManager;
@@ -16,6 +16,11 @@ pub async fn execute(key: String, value: Option<String>, users: Option<String>, 
     let admin_password = UI::password("Admin password")?;
     if !CryptoManager::verify_password(&admin_password, &config.admin_key_hash)? {
         return Err(anyhow!("Invalid admin password"));
+    }
+    
+    let master_key = UI::password("Master decryption key")?;
+    if !CryptoManager::verify_password(&master_key, &config.master_key_hash)? {
+        return Err(anyhow!("Invalid master key"));
     }
     
     let is_file = Path::new(&key).exists();
@@ -72,9 +77,8 @@ pub async fn execute(key: String, value: Option<String>, users: Option<String>, 
     let mut existing_secrets = if config.encrypted_data.is_empty() {
         EncryptedSecrets { secrets: Vec::new() }
     } else {
-        let admin_user = config.users.values().find(|u| u.is_admin).unwrap();
-        let admin_key = CryptoManager::derive_key(&admin_password, &admin_user.salt)?;
-        let decrypted_data = CryptoManager::decrypt_data(&config.encrypted_data, &admin_key)?;
+        let master_encryption_key = CryptoManager::derive_key_from_password(&master_key)?;
+        let decrypted_data = CryptoManager::decrypt_data(&config.encrypted_data, &master_encryption_key)?;
         serde_json::from_slice(&decrypted_data)?
     };
     
@@ -93,10 +97,9 @@ pub async fn execute(key: String, value: Option<String>, users: Option<String>, 
         UI::info(&format!("Added secret: {}", secret_key));
     }
     
-    let admin_user = config.users.values().find(|u| u.is_admin).unwrap();
-    let admin_key = CryptoManager::derive_key(&admin_password, &admin_user.salt)?;
+    let master_encryption_key = CryptoManager::derive_key_from_password(&master_key)?;
     let serialized_secrets = serde_json::to_vec(&existing_secrets)?;
-    let encrypted_data = CryptoManager::encrypt_data(&serialized_secrets, &admin_key)?;
+    let encrypted_data = CryptoManager::encrypt_data(&serialized_secrets, &master_encryption_key)?;
     
     config.encrypted_data = encrypted_data;
     config.secrets.insert(secret_key.clone(), secret);

@@ -33,14 +33,13 @@ impl CryptoManager {
         Ok(argon2.verify_password(password.as_bytes(), &parsed_hash).is_ok())
     }
     
-    pub fn derive_key(password: &str, salt: &str) -> Result<[u8; KEY_SIZE]> {
-        let salt_bytes = BASE64.decode(salt)
-            .map_err(|e| anyhow!("Invalid salt: {}", e))?;
+    pub fn derive_key_from_password(password: &str) -> Result<[u8; KEY_SIZE]> {
+        let fixed_salt = b"smolcase_salt_16"; // 16 bytes exactly
         
         let argon2 = Argon2::default();
         let mut key = [0u8; KEY_SIZE];
         
-        argon2.hash_password_into(password.as_bytes(), &salt_bytes, &mut key)
+        argon2.hash_password_into(password.as_bytes(), fixed_salt, &mut key)
             .map_err(|e| anyhow!("Key derivation failed: {}", e))?;
         
         Ok(key)
@@ -49,7 +48,7 @@ impl CryptoManager {
     pub fn encrypt_data(data: &[u8], key: &[u8; KEY_SIZE]) -> Result<String> {
         let cipher = ChaCha20Poly1305::new(key.into());
         let mut nonce_bytes = [0u8; NONCE_SIZE];
-        OsRng.fill_bytes(&mut nonce_bytes);
+        ChaChaOsRng.fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
         
         let ciphertext = cipher

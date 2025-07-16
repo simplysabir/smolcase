@@ -28,13 +28,22 @@ pub async fn execute(name: Option<String>, git: bool) -> Result<()> {
     let admin_password = UI::password("Admin password")?;
     
     if admin_password.len() < 8 {
-        return Err(anyhow!("Password must be at least 8 characters long"));
+        return Err(anyhow!("Admin password must be at least 8 characters long"));
+    }
+    
+    // NEW: Ask for master decryption key
+    UI::info("Set a master decryption key that will be shared with your team:");
+    let master_key = UI::password("Master decryption key")?;
+    
+    if master_key.len() < 8 {
+        return Err(anyhow!("Master key must be at least 8 characters long"));
     }
     
     UI::info("Creating project configuration...");
     
     let (password_hash, salt) = CryptoManager::hash_password(&admin_password)?;
     let (admin_key_hash, _) = CryptoManager::hash_password(&admin_password)?;
+    let (master_key_hash, _) = CryptoManager::hash_password(&master_key)?; // NEW
     
     let admin_user = User {
         id: Uuid::new_v4(),
@@ -55,6 +64,7 @@ pub async fn execute(name: Option<String>, git: bool) -> Result<()> {
         project_name: project_name.clone(),
         created_at: Utc::now().to_rfc3339(),
         admin_key_hash,
+        master_key_hash, // NEW
         users,
         groups: HashMap::new(),
         secrets: HashMap::new(),
@@ -72,6 +82,8 @@ pub async fn execute(name: Option<String>, git: bool) -> Result<()> {
     }
     
     UI::success(&format!("Project '{}' initialized successfully!", project_name));
+    UI::warning("IMPORTANT: Share the master decryption key securely with your team!");
+    UI::info(&format!("Master key: {}", master_key));
     UI::info("Run 'smolcase add' to start adding secrets");
     
     Ok(())

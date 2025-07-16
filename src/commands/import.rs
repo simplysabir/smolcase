@@ -17,6 +17,11 @@ pub async fn execute(file: PathBuf, format: String) -> Result<()> {
         return Err(anyhow!("Invalid admin password"));
     }
     
+    let master_key = UI::password("Master decryption key")?;
+    if !CryptoManager::verify_password(&master_key, &config.master_key_hash)? {
+        return Err(anyhow!("Invalid master key"));
+    }
+    
     let content = fs::read_to_string(&file)?;
     
     let secrets_map: HashMap<String, String> = match format.as_str() {
@@ -52,9 +57,8 @@ pub async fn execute(file: PathBuf, format: String) -> Result<()> {
     let mut existing_secrets = if config.encrypted_data.is_empty() {
         EncryptedSecrets { secrets: Vec::new() }
     } else {
-        let admin_user = config.users.values().find(|u| u.is_admin).unwrap();
-        let admin_key = CryptoManager::derive_key(&admin_password, &admin_user.salt)?;
-        let decrypted_data = CryptoManager::decrypt_data(&config.encrypted_data, &admin_key)?;
+        let master_encryption_key = CryptoManager::derive_key_from_password(&master_key)?;
+        let decrypted_data = CryptoManager::decrypt_data(&config.encrypted_data, &master_encryption_key)?;
         serde_json::from_slice(&decrypted_data)?
     };
     
@@ -92,10 +96,9 @@ pub async fn execute(file: PathBuf, format: String) -> Result<()> {
         imported_count += 1;
     }
     
-    let admin_user = config.users.values().find(|u| u.is_admin).unwrap();
-    let admin_key = CryptoManager::derive_key(&admin_password, &admin_user.salt)?;
+    let master_encryption_key = CryptoManager::derive_key_from_password(&master_key)?;
     let serialized_secrets = serde_json::to_vec(&existing_secrets)?;
-    let encrypted_data = CryptoManager::encrypt_data(&serialized_secrets, &admin_key)?;
+    let encrypted_data = CryptoManager::encrypt_data(&serialized_secrets, &master_encryption_key)?;
     
     config.encrypted_data = encrypted_data;
     ConfigManager::save_config(&config)?;
