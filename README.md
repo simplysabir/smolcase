@@ -249,10 +249,10 @@ jobs:
           git clone https://github.com/company/myproject-secrets.git secrets
           cd secrets
           
-      # Install smolcase (in real scenario, cache this)
+      # Install smolcase (in real scenario, cache this and try to use it via cargo this example is ther econsidering future improvements that I'll add)
       - name: Install smolcase
         run: |
-          curl -L https://github.com/yourusername/smolcase/releases/latest/download/smolcase-linux.tar.gz | tar xz
+          curl -L https://github.com/simplysabir/smolcase/releases/latest/download/smolcase-linux.tar.gz | tar xz
           sudo mv smolcase /usr/local/bin/
           
       # Export secrets
@@ -278,8 +278,8 @@ jobs:
 FROM node:18
 WORKDIR /app
 
-# Install smolcase
-RUN curl -L https://github.com/yourusername/smolcase/releases/latest/download/smolcase-linux.tar.gz | tar xz && \
+# Install smolcase (preferably use cargo install smolcase)
+RUN curl -L https://github.com/simplysabir/smolcase/releases/latest/download/smolcase-linux.tar.gz | tar xz && \
     mv smolcase /usr/local/bin/
 
 # Copy secrets repo (in build context)
