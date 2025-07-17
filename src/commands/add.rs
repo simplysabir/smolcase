@@ -16,17 +16,15 @@ pub async fn execute(
     users: Option<String>,
     groups: Option<String>,
 ) -> Result<()> {
-    let mut config = ConfigManager::load_config()?;
+    let public_config = ConfigManager::load_public_config()?;
 
     let admin_password = UI::password("Admin password")?;
-    if !CryptoManager::verify_password(&admin_password, &config.admin_key_hash)? {
+    if !CryptoManager::verify_password(&admin_password, &public_config.admin_key_hash)? {
         return Err(anyhow!("Invalid admin password"));
     }
 
     let master_key = UI::password("Master decryption key")?;
-    if !CryptoManager::verify_password(&master_key, &config.master_key_hash)? {
-        return Err(anyhow!("Invalid master key"));
-    }
+    let (_, mut private_config) = ConfigManager::load_full_config(&master_key)?;
 
     let is_file = Path::new(&key).exists();
     let secret_key = if is_file {
@@ -81,14 +79,13 @@ pub async fn execute(
         file_path: if is_file { Some(key.clone()) } else { None },
     };
 
-    let mut existing_secrets = if config.encrypted_data.is_empty() {
+    // Load existing encrypted secrets
+    let mut existing_secrets = if private_config.encrypted_secrets.is_empty() {
         EncryptedSecrets {
             secrets: Vec::new(),
         }
     } else {
-        let master_encryption_key = CryptoManager::derive_key_from_password(&master_key)?;
-        let decrypted_data =
-            CryptoManager::decrypt_data(&config.encrypted_data, &master_encryption_key)?;
+        let decrypted_data = CryptoManager::decrypt_data_with_salt(&private_config.encrypted_secrets, &master_key)?;
         serde_json::from_slice(&decrypted_data)?
     };
 
@@ -111,14 +108,15 @@ pub async fn execute(
         UI::info(&format!("Added secret: {}", secret_key));
     }
 
-    let master_encryption_key = CryptoManager::derive_key_from_password(&master_key)?;
+    // Re-encrypt secret values
     let serialized_secrets = serde_json::to_vec(&existing_secrets)?;
-    let encrypted_data = CryptoManager::encrypt_data(&serialized_secrets, &master_encryption_key)?;
+    private_config.encrypted_secrets = CryptoManager::encrypt_data_with_salt(&serialized_secrets, &master_key)?;
+    
+    // Add secret metadata to private config
+    private_config.secrets.insert(secret_key.clone(), secret);
 
-    config.encrypted_data = encrypted_data;
-    config.secrets.insert(secret_key.clone(), secret);
-
-    ConfigManager::save_config(&config)?;
+    // Save everything
+                ConfigManager::save_config(&public_config, &private_config, &master_key)?;
 
     UI::success(&format!("Secret '{}' added successfully!", secret_key));
 

@@ -1,4 +1,5 @@
-use crate::types::SmolcaseConfig;
+use crate::types::{SmolcaseConfig, PrivateConfig, EncryptedData};
+use crate::crypto::CryptoManager;
 use anyhow::{Result, anyhow};
 use serde_yaml;
 use std::fs;
@@ -26,7 +27,7 @@ impl ConfigManager {
         Self::config_path().map(|p| p.exists()).unwrap_or(false)
     }
 
-    pub fn load_config() -> Result<SmolcaseConfig> {
+    pub fn load_public_config() -> Result<SmolcaseConfig> {
         let config_path = Self::config_path()?;
 
         if !config_path.exists() {
@@ -44,10 +45,47 @@ impl ConfigManager {
         Ok(config)
     }
 
-    pub fn save_config(config: &SmolcaseConfig) -> Result<()> {
-        let config_path = Self::config_path()?;
+    pub fn load_full_config(master_key: &str) -> Result<(SmolcaseConfig, PrivateConfig)> {
+        let public_config = Self::load_public_config()?;
+        
+        if !CryptoManager::verify_password(master_key, &public_config.master_key_hash)? {
+            return Err(anyhow!("Invalid master key"));
+        }
+        
+        let private_config = if public_config.encrypted_data.is_empty() {
+            PrivateConfig {
+                users: std::collections::HashMap::new(),
+                groups: std::collections::HashMap::new(),
+                secrets: std::collections::HashMap::new(),
+                encrypted_secrets: EncryptedData::default(),
+            }
+        } else {
+            let private_data = CryptoManager::decrypt_data_with_salt(&public_config.encrypted_data, master_key)?;
+            serde_json::from_slice(&private_data)?
+        };
+        
+        Ok((public_config, private_config))
+    }
 
-        let content = serde_yaml::to_string(config)
+    pub fn save_config(
+        public_config: &SmolcaseConfig, 
+        private_config: &PrivateConfig, 
+        master_key: &str
+    ) -> Result<()> {
+        let private_data = serde_json::to_vec(private_config)?;
+        let encrypted_data = CryptoManager::encrypt_data_with_salt(&private_data, master_key)?;
+        
+        let final_config = SmolcaseConfig {
+            version: public_config.version.clone(),
+            project_name: public_config.project_name.clone(),
+            created_at: public_config.created_at.clone(),
+            admin_key_hash: public_config.admin_key_hash.clone(),
+            master_key_hash: public_config.master_key_hash.clone(),
+            encrypted_data,
+        };
+        
+        let config_path = Self::config_path()?;
+        let content = serde_yaml::to_string(&final_config)
             .map_err(|e| anyhow!("Failed to serialize config: {}", e))?;
 
         fs::write(&config_path, content)

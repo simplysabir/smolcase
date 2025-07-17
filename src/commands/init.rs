@@ -1,7 +1,7 @@
 use crate::config::ConfigManager;
 use crate::crypto::CryptoManager;
 use crate::git::GitManager;
-use crate::types::{SmolcaseConfig, User};
+use crate::types::{SmolcaseConfig, PrivateConfig, User, EncryptedData};
 use crate::ui::UI;
 use anyhow::{Result, anyhow};
 use chrono::Utc;
@@ -31,7 +31,6 @@ pub async fn execute(name: Option<String>, git: bool) -> Result<()> {
         return Err(anyhow!("Admin password must be at least 8 characters long"));
     }
 
-    // NEW: Ask for master decryption key
     UI::info("Set a master decryption key that will be shared with your team:");
     let master_key = UI::password("Master decryption key")?;
 
@@ -43,7 +42,7 @@ pub async fn execute(name: Option<String>, git: bool) -> Result<()> {
 
     let (password_hash, salt) = CryptoManager::hash_password(&admin_password)?;
     let (admin_key_hash, _) = CryptoManager::hash_password(&admin_password)?;
-    let (master_key_hash, _) = CryptoManager::hash_password(&master_key)?; // NEW
+    let (master_key_hash, _) = CryptoManager::hash_password(&master_key)?;
 
     let admin_user = User {
         id: Uuid::new_v4(),
@@ -56,23 +55,29 @@ pub async fn execute(name: Option<String>, git: bool) -> Result<()> {
         is_admin: true,
     };
 
-    let mut users = HashMap::new();
-    users.insert(admin_username, admin_user);
-
-    let config = SmolcaseConfig {
+    // Create public config (minimal info)
+    let public_config = SmolcaseConfig {
         version: "1.0.0".to_string(),
         project_name: project_name.clone(),
         created_at: Utc::now().to_rfc3339(),
         admin_key_hash,
-        master_key_hash, // NEW
+        master_key_hash,
+        encrypted_data: EncryptedData::default(), // Will be filled by save_full_config
+    };
+
+    // Create private config (all sensitive data)
+    let mut users = HashMap::new();
+    users.insert(admin_username, admin_user);
+
+    let private_config = PrivateConfig {
         users,
         groups: HashMap::new(),
         secrets: HashMap::new(),
-        encrypted_data: String::new(),
+        encrypted_secrets: EncryptedData::default(),
     };
 
     ConfigManager::create_config_dir()?;
-    ConfigManager::save_config(&config)?;
+            ConfigManager::save_config(&public_config, &private_config, &master_key)?;
 
     if git {
         UI::info("Initializing Git repository...");

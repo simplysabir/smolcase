@@ -35,17 +35,21 @@ pub async fn execute(repo: Option<String>) -> Result<()> {
         return Err(anyhow!("Not a smolcase project"));
     }
 
-    let config = ConfigManager::load_config()?;
+    let public_config = ConfigManager::load_public_config()?;
 
     UI::header(&format!(
         "Setup access for project: {}",
-        config.project_name
+        public_config.project_name
     ));
 
     let username = UI::input("Username")?;
     let password = UI::password("Password")?;
+    let master_key = UI::password("Master decryption key")?;
 
-    if let Some(user) = config.users.get(&username) {
+    // Load private config to verify user
+    let (_, private_config) = ConfigManager::load_full_config(&master_key)?;
+
+    if let Some(user) = private_config.users.get(&username) {
         if CryptoManager::verify_password(&password, &user.password_hash)? {
             UI::success(&format!("Access granted for user: {}", username));
             UI::info("You can now use 'smolcase get' to retrieve secrets");

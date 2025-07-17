@@ -10,17 +10,15 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 pub async fn execute(file: PathBuf, format: String) -> Result<()> {
-    let mut config = ConfigManager::load_config()?;
+    let public_config = ConfigManager::load_public_config()?;
 
     let admin_password = UI::password("Admin password")?;
-    if !CryptoManager::verify_password(&admin_password, &config.admin_key_hash)? {
+    if !CryptoManager::verify_password(&admin_password, &public_config.admin_key_hash)? {
         return Err(anyhow!("Invalid admin password"));
     }
 
     let master_key = UI::password("Master decryption key")?;
-    if !CryptoManager::verify_password(&master_key, &config.master_key_hash)? {
-        return Err(anyhow!("Invalid master key"));
-    }
+    let (_, mut private_config) = ConfigManager::load_full_config(&master_key)?;
 
     let content = fs::read_to_string(&file)?;
 
@@ -54,14 +52,12 @@ pub async fn execute(file: PathBuf, format: String) -> Result<()> {
         return Ok(());
     }
 
-    let mut existing_secrets = if config.encrypted_data.is_empty() {
+    let mut existing_secrets = if private_config.encrypted_secrets.is_empty() {
         EncryptedSecrets {
             secrets: Vec::new(),
         }
     } else {
-        let master_encryption_key = CryptoManager::derive_key_from_password(&master_key)?;
-        let decrypted_data =
-            CryptoManager::decrypt_data(&config.encrypted_data, &master_encryption_key)?;
+        let decrypted_data = CryptoManager::decrypt_data_with_salt(&private_config.encrypted_secrets, &master_key)?;
         serde_json::from_slice(&decrypted_data)?
     };
 
@@ -95,16 +91,14 @@ pub async fn execute(file: PathBuf, format: String) -> Result<()> {
             existing_secrets.secrets.push(secret_value);
         }
 
-        config.secrets.insert(key.clone(), secret);
+        private_config.secrets.insert(key.clone(), secret);
         imported_count += 1;
     }
 
-    let master_encryption_key = CryptoManager::derive_key_from_password(&master_key)?;
     let serialized_secrets = serde_json::to_vec(&existing_secrets)?;
-    let encrypted_data = CryptoManager::encrypt_data(&serialized_secrets, &master_encryption_key)?;
+    private_config.encrypted_secrets = CryptoManager::encrypt_data_with_salt(&serialized_secrets, &master_key)?;
 
-    config.encrypted_data = encrypted_data;
-    ConfigManager::save_config(&config)?;
+    ConfigManager::save_config(&public_config, &private_config, &master_key)?;
 
     UI::success(&format!(
         "Imported {} secrets successfully!",

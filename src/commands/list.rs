@@ -4,16 +4,17 @@ use anyhow::Result;
 use colored::*;
 
 pub async fn execute() -> Result<()> {
-    let config = ConfigManager::load_config()?;
+    let master_key = UI::password("Master decryption key")?;
+    let (_, private_config) = ConfigManager::load_full_config(&master_key)?;
 
-    if config.secrets.is_empty() {
+    if private_config.secrets.is_empty() {
         UI::info("No secrets found");
         return Ok(());
     }
 
     UI::header("Secrets");
 
-    for (key, secret) in &config.secrets {
+    for (key, secret) in &private_config.secrets {
         let type_icon = if secret.is_file { "📄" } else { "🔑" };
         let permissions =
             if secret.permissions.users.is_empty() && secret.permissions.groups.is_empty() {

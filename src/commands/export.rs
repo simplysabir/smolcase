@@ -8,14 +8,16 @@ use std::fs;
 use std::path::PathBuf;
 
 pub async fn execute(format: String, output: Option<PathBuf>) -> Result<()> {
-    let config = ConfigManager::load_config()?;
-
     let user_password = UI::password("Your password")?;
+    let master_key = UI::password("Master decryption key")?;
+    
+    let (_, private_config) = ConfigManager::load_full_config(&master_key)?;
 
+    // Find and verify user
     let mut user_found = false;
     let mut username = String::new();
 
-    for (uname, user) in &config.users {
+    for (uname, user) in &private_config.users {
         if CryptoManager::verify_password(&user_password, &user.password_hash)? {
             user_found = true;
             username = uname.clone();
@@ -27,26 +29,19 @@ pub async fn execute(format: String, output: Option<PathBuf>) -> Result<()> {
         return Err(anyhow!("Invalid password"));
     }
 
-    let master_key = UI::password("Master decryption key")?;
-    if !CryptoManager::verify_password(&master_key, &config.master_key_hash)? {
-        return Err(anyhow!("Invalid master key"));
-    }
-
     let mut accessible_secrets = Vec::new();
 
-    if !config.encrypted_data.is_empty() {
-        let master_encryption_key = CryptoManager::derive_key_from_password(&master_key)?;
-        let decrypted_data =
-            CryptoManager::decrypt_data(&config.encrypted_data, &master_encryption_key)?;
+    if !private_config.encrypted_secrets.is_empty() {
+        let decrypted_data = CryptoManager::decrypt_data_with_salt(&private_config.encrypted_secrets, &master_key)?;
         let secrets: EncryptedSecrets = serde_json::from_slice(&decrypted_data)?;
 
         for secret_value in &secrets.secrets {
-            if let Some(secret_meta) = config.secrets.get(&secret_value.key) {
+            if let Some(secret_meta) = private_config.secrets.get(&secret_value.key) {
                 let has_permission = secret_meta.permissions.users.is_empty()
                     && secret_meta.permissions.groups.is_empty()
                     || secret_meta.permissions.users.contains(&username)
                     || secret_meta.permissions.groups.iter().any(|group| {
-                        config
+                        private_config
                             .groups
                             .get(group)
                             .map_or(false, |g| g.members.contains(&username))

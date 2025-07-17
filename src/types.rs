@@ -7,12 +7,39 @@ pub struct SmolcaseConfig {
     pub version: String,
     pub project_name: String,
     pub created_at: String,
-    pub admin_key_hash: String,
-    pub master_key_hash: String,
+    pub admin_key_hash: String,    // Only for admin verification
+    pub master_key_hash: String,   // Only for master key verification
+    pub encrypted_data: EncryptedData, // ALL sensitive data encrypted
+}
+
+// PRIVATE config - encrypted with master key
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PrivateConfig {
     pub users: HashMap<String, User>,
     pub groups: HashMap<String, Group>,
     pub secrets: HashMap<String, Secret>,
-    pub encrypted_data: String,
+    pub encrypted_secrets: EncryptedData, // Double-encrypted secret values
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EncryptedData {
+    pub salt: String,    // Base64 encoded random salt
+    pub data: String,    // Base64 encoded encrypted data
+}
+
+impl Default for EncryptedData {
+    fn default() -> Self {
+        Self {
+            salt: String::new(),
+            data: String::new(),
+        }
+    }
+}
+
+impl EncryptedData {
+    pub fn is_empty(&self) -> bool {
+        self.salt.is_empty() && self.data.is_empty()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

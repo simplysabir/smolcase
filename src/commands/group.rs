@@ -9,16 +9,19 @@ use colored::*;
 use uuid::Uuid;
 
 pub async fn execute(action: GroupAction) -> Result<()> {
-    let mut config = ConfigManager::load_config()?;
+    let public_config = ConfigManager::load_public_config()?;
 
     let admin_password = UI::password("Admin password")?;
-    if !CryptoManager::verify_password(&admin_password, &config.admin_key_hash)? {
+    if !CryptoManager::verify_password(&admin_password, &public_config.admin_key_hash)? {
         return Err(anyhow!("Invalid admin password"));
     }
 
+    let master_key = UI::password("Master decryption key")?;
+    let (_, mut private_config) = ConfigManager::load_full_config(&master_key)?;
+
     match action {
         GroupAction::Create { name, description } => {
-            if config.groups.contains_key(&name) {
+            if private_config.groups.contains_key(&name) {
                 return Err(anyhow!("Group '{}' already exists", name));
             }
 
@@ -30,14 +33,14 @@ pub async fn execute(action: GroupAction) -> Result<()> {
                 created_at: Utc::now().to_rfc3339(),
             };
 
-            config.groups.insert(name.clone(), group);
-            ConfigManager::save_config(&config)?;
+            private_config.groups.insert(name.clone(), group);
+            ConfigManager::save_config(&public_config, &private_config, &master_key)?;
 
             UI::success(&format!("Group '{}' created successfully!", name));
         }
 
         GroupAction::Delete { name } => {
-            if !config.groups.contains_key(&name) {
+            if !private_config.groups.contains_key(&name) {
                 return Err(anyhow!("Group '{}' not found", name));
             }
 
@@ -45,8 +48,8 @@ pub async fn execute(action: GroupAction) -> Result<()> {
                 return Ok(());
             }
 
-            config.groups.remove(&name);
-            ConfigManager::save_config(&config)?;
+            private_config.groups.remove(&name);
+            ConfigManager::save_config(&public_config, &private_config, &master_key)?;
 
             UI::success(&format!("Group '{}' deleted successfully!", name));
         }
@@ -54,7 +57,7 @@ pub async fn execute(action: GroupAction) -> Result<()> {
         GroupAction::List => {
             UI::header("Groups");
 
-            for (name, group) in &config.groups {
+            for (name, group) in &private_config.groups {
                 println!(
                     "👥 {} ({} members)",
                     name.cyan(),
@@ -67,15 +70,15 @@ pub async fn execute(action: GroupAction) -> Result<()> {
         }
 
         GroupAction::AddUser { group, users } => {
-            if !config.groups.contains_key(&group) {
+            if !private_config.groups.contains_key(&group) {
                 return Err(anyhow!("Group '{}' not found", group));
             }
 
             let mut added_users = Vec::new();
 
-            if let Some(group_obj) = config.groups.get_mut(&group) {
+            if let Some(group_obj) = private_config.groups.get_mut(&group) {
                 for username in users {
-                    if !config.users.contains_key(&username) {
+                    if !private_config.users.contains_key(&username) {
                         UI::warning(&format!("User '{}' not found, skipping", username));
                         continue;
                     }
@@ -89,7 +92,7 @@ pub async fn execute(action: GroupAction) -> Result<()> {
                 }
             }
 
-            ConfigManager::save_config(&config)?;
+            ConfigManager::save_config(&public_config, &private_config, &master_key)?;
 
             if !added_users.is_empty() {
                 UI::success(&format!(
@@ -101,13 +104,13 @@ pub async fn execute(action: GroupAction) -> Result<()> {
         }
 
         GroupAction::RemoveUser { group, users } => {
-            if !config.groups.contains_key(&group) {
+            if !private_config.groups.contains_key(&group) {
                 return Err(anyhow!("Group '{}' not found", group));
             }
 
             let mut removed_users = Vec::new();
 
-            if let Some(group_obj) = config.groups.get_mut(&group) {
+            if let Some(group_obj) = private_config.groups.get_mut(&group) {
                 for username in users {
                     if let Some(pos) = group_obj.members.iter().position(|u| u == &username) {
                         group_obj.members.remove(pos);
@@ -118,7 +121,7 @@ pub async fn execute(action: GroupAction) -> Result<()> {
                 }
             }
 
-            ConfigManager::save_config(&config)?;
+            ConfigManager::save_config(&public_config, &private_config, &master_key)?;
 
             if !removed_users.is_empty() {
                 UI::success(&format!(
