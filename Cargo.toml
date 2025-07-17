@@ -32,7 +32,7 @@ rpassword = "7.0"
 colored = "2.0"
 dialoguer = "0.10"
 indicatif = "0.17"
-git2 = "0.18"
+git2 = { version = "0.18", default-features = false, features = ["vendored-openssl"] }
 rand = "0.8"
 argon2 = "0.5"
 chacha20poly1305 = "0.10"
@@ -45,12 +45,17 @@ sha2 = "0.10"
 tempfile = "3.20.0"
 hostname = "0.4.1"
 
-# Add these for cross-compilation
+[features]
+default = ["vendored-openssl"]
+vendored-openssl = ["git2/vendored-openssl"]
+
+
+# Target-specific configurations
 [target.'cfg(target_os = "linux")'.dependencies]
-# Linux-specific dependencies if needed
+openssl = { version = "0.10", features = ["vendored"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-# macOS-specific dependencies if needed
+openssl = { version = "0.10", features = ["vendored"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-# Windows-specific dependencies if needed
+# Windows uses SChannel, no OpenSSL needed
