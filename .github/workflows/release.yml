@@ -27,13 +27,6 @@ jobs:
             asset_name: smolcase-linux-x86_64
             cross: false
           
-          # Linux ARM64 - use cross for proper cross-compilation
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            artifact_name: smolcase
-            asset_name: smolcase-linux-aarch64
-            cross: true
-          
           # macOS targets - native builds
           - target: x86_64-apple-darwin
             os: macos-13  # Intel runner
