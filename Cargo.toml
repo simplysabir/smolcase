@@ -48,14 +48,3 @@ hostname = "0.4.1"
 [features]
 default = ["vendored-openssl"]
 vendored-openssl = ["git2/vendored-openssl"]
-
-
-# Target-specific configurations
-[target.'cfg(target_os = "linux")'.dependencies]
-openssl = { version = "0.10", features = ["vendored"] }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-openssl = { version = "0.10", features = ["vendored"] }
-
-[target.'cfg(target_os = "windows")'.dependencies]
-# Windows uses SChannel, no OpenSSL needed
