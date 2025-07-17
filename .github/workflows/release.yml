@@ -1,3 +1,4 @@
+# .github/workflows/release.yml
 name: Release
 
 on:
@@ -7,6 +8,11 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+
+# Required permissions for creating releases
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   build:
@@ -59,7 +65,7 @@ jobs:
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
       - name: Cache cargo registry
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -91,14 +97,14 @@ jobs:
 
       - name: Upload artifacts (Unix)
         if: matrix.os != 'windows-latest'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
           path: target/${{ matrix.target }}/release/${{ matrix.asset_name }}.tar.gz
 
       - name: Upload artifacts (Windows)
         if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
           path: target/${{ matrix.target }}/release/${{ matrix.asset_name }}.zip
@@ -112,7 +118,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
 
@@ -142,12 +148,10 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag_name.outputs.TAG_NAME }}
-          release_name: smolcase ${{ steps.tag_name.outputs.TAG_NAME }}
+          name: smolcase ${{ steps.tag_name.outputs.TAG_NAME }}
           body: |
             ## Changes
             ${{ steps.changelog.outputs.CHANGELOG }}
@@ -181,53 +185,9 @@ jobs:
             All binaries are built from source using GitHub Actions. See the workflow for verification.
           draft: false
           prerelease: false
-
-      - name: Upload Linux x86_64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/smolcase-linux-x86_64/smolcase-linux-x86_64.tar.gz
-          asset_name: smolcase-linux-x86_64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Linux ARM64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/smolcase-linux-aarch64/smolcase-linux-aarch64.tar.gz
-          asset_name: smolcase-linux-aarch64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload macOS x86_64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/smolcase-macos-x86_64/smolcase-macos-x86_64.tar.gz
-          asset_name: smolcase-macos-x86_64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload macOS ARM64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/smolcase-macos-aarch64/smolcase-macos-aarch64.tar.gz
-          asset_name: smolcase-macos-aarch64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Windows x86_64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/smolcase-windows-x86_64/smolcase-windows-x86_64.exe.zip
-          asset_name: smolcase-windows-x86_64.exe.zip
-          asset_content_type: application/zip
+          files: |
+            artifacts/smolcase-linux-x86_64/smolcase-linux-x86_64.tar.gz
+            artifacts/smolcase-linux-aarch64/smolcase-linux-aarch64.tar.gz
+            artifacts/smolcase-macos-x86_64/smolcase-macos-x86_64.tar.gz
+            artifacts/smolcase-macos-aarch64/smolcase-macos-aarch64.tar.gz
+            artifacts/smolcase-windows-x86_64/smolcase-windows-x86_64.exe.zip
