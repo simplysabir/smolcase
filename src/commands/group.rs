@@ -1,5 +1,6 @@
 use crate::GroupAction;
 use crate::config::ConfigManager;
+use crate::credential_manager::CredentialManager;
 use crate::crypto::CryptoManager;
 use crate::types::Group;
 use crate::ui::UI;
@@ -10,13 +11,20 @@ use uuid::Uuid;
 
 pub async fn execute(action: GroupAction) -> Result<()> {
     let public_config = ConfigManager::load_public_config()?;
+    let cached_creds = CredentialManager::load_credentials()?;
 
-    let admin_password = UI::password("Admin password")?;
+    if !cached_creds.is_admin {
+        return Err(anyhow!(
+            "Only admins can manage groups. Use 'smolcase configure' to set up admin credentials."
+        ));
+    }
+
+    let admin_password = CredentialManager::get_admin_password(&cached_creds)?;
     if !CryptoManager::verify_password(&admin_password, &public_config.admin_key_hash)? {
         return Err(anyhow!("Invalid admin password"));
     }
 
-    let master_key = UI::password("Master decryption key")?;
+    let master_key = CredentialManager::get_master_key(&cached_creds)?;
     let (_, mut private_config) = ConfigManager::load_full_config(&master_key)?;
 
     match action {

@@ -1,4 +1,5 @@
 use crate::config::ConfigManager;
+use crate::credential_manager::CredentialManager;
 use crate::git::GitManager;
 use crate::ui::UI;
 use anyhow::Result;
@@ -11,16 +12,51 @@ pub async fn execute() -> Result<()> {
 
     let public_config = ConfigManager::load_public_config()?;
     let current_dir = std::env::current_dir()?;
+    let cached_creds = CredentialManager::load_credentials()?;
 
     UI::header(&format!("Project: {}", public_config.project_name));
 
     UI::table_row("Version", &public_config.version);
     UI::table_row("Created", &public_config.created_at);
 
+    // Show credential status
+    if cached_creds.is_admin {
+        UI::table_row("Local Role", "Admin");
+        UI::table_row(
+            "Admin Password",
+            if cached_creds.admin_password.is_some() {
+                "Cached"
+            } else {
+                "Not cached"
+            },
+        );
+    } else {
+        UI::table_row("Local Role", "User");
+    }
+
+    UI::table_row(
+        "User Password",
+        if cached_creds.user_password.is_some() {
+            "Cached"
+        } else {
+            "Not cached"
+        },
+    );
+    UI::table_row(
+        "Master Key",
+        if cached_creds.master_key.is_some() {
+            "Cached"
+        } else {
+            "Not cached"
+        },
+    );
+
+    if let Some(username) = &cached_creds.username {
+        UI::table_row("Username", username);
+    }
+
     // Try to get private info if master key is available
-    let master_key_result = UI::password("Master decryption key (optional for full status)");
-    
-    if let Ok(master_key) = master_key_result {
+    if let Ok(master_key) = CredentialManager::get_master_key(&cached_creds) {
         if let Ok((_, private_config)) = ConfigManager::load_full_config(&master_key) {
             UI::table_row("Users", &private_config.users.len().to_string());
             UI::table_row("Groups", &private_config.groups.len().to_string());
@@ -56,13 +92,13 @@ pub async fn execute() -> Result<()> {
                 UI::table_row("Groups", &private_config.groups.len().to_string());
             }
         } else {
-            UI::warning("Invalid master key - showing limited status");
+            UI::warning("Could not decrypt project data");
             UI::table_row("Users", "encrypted");
             UI::table_row("Groups", "encrypted");
             UI::table_row("Secrets", "encrypted");
         }
     } else {
-        UI::info("Master key not provided - showing limited status");
+        UI::info("Master key not available - showing limited status");
         UI::table_row("Users", "encrypted");
         UI::table_row("Groups", "encrypted");
         UI::table_row("Secrets", "encrypted");
@@ -76,6 +112,11 @@ pub async fn execute() -> Result<()> {
             "No"
         },
     );
+
+    if !cached_creds.master_key.is_some() || !cached_creds.user_password.is_some() {
+        println!();
+        UI::info("💡 Run 'smolcase configure' to cache credentials and avoid password prompts");
+    }
 
     Ok(())
 }

@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 mod commands;
 mod config;
+mod credential_manager;
 mod crypto;
 mod git;
 mod types;
@@ -14,8 +15,8 @@ use commands::*;
 
 #[derive(Parser)]
 #[command(name = "smolcase")]
-#[command(about = "A CLI tool for secure team secret management")]
-#[command(version = "1.0.0")]
+#[command(about = "Zero-infrastructure secret management for development teams.")]
+#[command(version = "1.2.0")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -32,6 +33,10 @@ enum Commands {
         #[arg(short, long)]
         git: bool,
     },
+    /// Set up local credentials (run once to cache passwords)
+    Configure,
+    /// Clear cached credentials
+    Logout,
     /// Add a new secret or file
     Add {
         /// Secret key or file path
@@ -136,6 +141,8 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::Init { name, git } => init::execute(name, git).await,
+        Commands::Configure => configure::execute().await,
+        Commands::Logout => logout::execute().await,
         Commands::Add {
             key,
             value,

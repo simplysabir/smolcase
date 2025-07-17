@@ -1,4 +1,5 @@
 use crate::config::ConfigManager;
+use crate::credential_manager::CredentialManager;
 use crate::crypto::CryptoManager;
 use crate::types::{EncryptedSecrets, Permissions, Secret, SecretValue};
 use crate::ui::UI;
@@ -11,13 +12,20 @@ use uuid::Uuid;
 
 pub async fn execute(file: PathBuf, format: String) -> Result<()> {
     let public_config = ConfigManager::load_public_config()?;
+    let cached_creds = CredentialManager::load_credentials()?;
 
-    let admin_password = UI::password("Admin password")?;
+    if !cached_creds.is_admin {
+        return Err(anyhow!(
+            "Only admins can import secrets. Use 'smolcase configure' to set up admin credentials."
+        ));
+    }
+
+    let admin_password = CredentialManager::get_admin_password(&cached_creds)?;
     if !CryptoManager::verify_password(&admin_password, &public_config.admin_key_hash)? {
         return Err(anyhow!("Invalid admin password"));
     }
 
-    let master_key = UI::password("Master decryption key")?;
+    let master_key = CredentialManager::get_master_key(&cached_creds)?;
     let (_, mut private_config) = ConfigManager::load_full_config(&master_key)?;
 
     let content = fs::read_to_string(&file)?;
@@ -57,11 +65,16 @@ pub async fn execute(file: PathBuf, format: String) -> Result<()> {
             secrets: Vec::new(),
         }
     } else {
-        let decrypted_data = CryptoManager::decrypt_data_with_salt(&private_config.encrypted_secrets, &master_key)?;
+        let decrypted_data =
+            CryptoManager::decrypt_data_with_salt(&private_config.encrypted_secrets, &master_key)?;
         serde_json::from_slice(&decrypted_data)?
     };
 
     let mut imported_count = 0;
+    let created_by = cached_creds
+        .username
+        .clone()
+        .unwrap_or_else(|| "admin".to_string());
 
     for (key, value) in secrets_map {
         let secret = Secret {
@@ -69,7 +82,7 @@ pub async fn execute(file: PathBuf, format: String) -> Result<()> {
             key: key.clone(),
             created_at: Utc::now().to_rfc3339(),
             updated_at: Utc::now().to_rfc3339(),
-            created_by: "admin".to_string(),
+            created_by: created_by.clone(),
             permissions: Permissions {
                 users: Vec::new(),
                 groups: Vec::new(),
@@ -96,7 +109,8 @@ pub async fn execute(file: PathBuf, format: String) -> Result<()> {
     }
 
     let serialized_secrets = serde_json::to_vec(&existing_secrets)?;
-    private_config.encrypted_secrets = CryptoManager::encrypt_data_with_salt(&serialized_secrets, &master_key)?;
+    private_config.encrypted_secrets =
+        CryptoManager::encrypt_data_with_salt(&serialized_secrets, &master_key)?;
 
     ConfigManager::save_config(&public_config, &private_config, &master_key)?;
 

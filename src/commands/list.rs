@@ -1,10 +1,12 @@
 use crate::config::ConfigManager;
+use crate::credential_manager::CredentialManager;
 use crate::ui::UI;
 use anyhow::Result;
 use colored::*;
 
 pub async fn execute() -> Result<()> {
-    let master_key = UI::password("Master decryption key")?;
+    let cached_creds = CredentialManager::load_credentials()?;
+    let master_key = CredentialManager::get_master_key(&cached_creds)?;
     let (_, private_config) = ConfigManager::load_full_config(&master_key)?;
 
     if private_config.secrets.is_empty() {

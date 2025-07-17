@@ -1,8 +1,8 @@
 [package]
 name = "smolcase"
-version = "1.1.0"
+version = "1.2.0"
 edition = "2024"
-description = "A CLI tool for secure team secret management."
+description = "Zero-infrastructure secret management for development teams."
 license = "MIT"
 authors = ["Sabir Khan <simplysabir@gmail.com>"]
 repository = "https://github.com/simplysabir/smolcase"
@@ -11,6 +11,14 @@ documentation = "https://github.com/simplysabir/smolcase#readme"
 keywords = ["cli", "secret", "management"]
 categories = ["command-line-utilities"]
 readme = "README.md"
+
+# Optimize for release builds
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true  # Automatically strip symbols
 
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
@@ -35,3 +43,14 @@ toml = "0.8"
 chrono = { version = "0.4.41", features = ["serde"]}
 sha2 = "0.10"
 tempfile = "3.20.0"
+hostname = "0.4.1"
+
+# Add these for cross-compilation
+[target.'cfg(target_os = "linux")'.dependencies]
+# Linux-specific dependencies if needed
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# macOS-specific dependencies if needed
+
+[target.'cfg(target_os = "windows")'.dependencies]
+# Windows-specific dependencies if needed

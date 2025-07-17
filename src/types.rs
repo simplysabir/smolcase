@@ -7,8 +7,8 @@ pub struct SmolcaseConfig {
     pub version: String,
     pub project_name: String,
     pub created_at: String,
-    pub admin_key_hash: String,    // Only for admin verification
-    pub master_key_hash: String,   // Only for master key verification
+    pub admin_key_hash: String,        // Only for admin verification
+    pub master_key_hash: String,       // Only for master key verification
     pub encrypted_data: EncryptedData, // ALL sensitive data encrypted
 }
 
@@ -21,10 +21,20 @@ pub struct PrivateConfig {
     pub encrypted_secrets: EncryptedData, // Double-encrypted secret values
 }
 
+// Local credential cache - stored locally, never committed
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LocalCredentials {
+    pub admin_password: Option<String>,
+    pub user_password: Option<String>,
+    pub username: Option<String>,
+    pub master_key: Option<String>,
+    pub is_admin: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptedData {
-    pub salt: String,    // Base64 encoded random salt
-    pub data: String,    // Base64 encoded encrypted data
+    pub salt: String, // Base64 encoded random salt
+    pub data: String, // Base64 encoded encrypted data
 }
 
 impl Default for EncryptedData {

@@ -1,4 +1,5 @@
 use crate::config::ConfigManager;
+use crate::credential_manager::CredentialManager;
 use crate::crypto::CryptoManager;
 use crate::git::GitManager;
 use crate::ui::UI;
@@ -53,6 +54,7 @@ pub async fn execute(repo: Option<String>) -> Result<()> {
         if CryptoManager::verify_password(&password, &user.password_hash)? {
             UI::success(&format!("Access granted for user: {}", username));
             UI::info("You can now use 'smolcase get' to retrieve secrets");
+            UI::info("Run 'smolcase configure' to cache credentials for easier access");
         } else {
             return Err(anyhow!("Invalid password"));
         }

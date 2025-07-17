@@ -6,6 +6,7 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::config::ConfigManager;
+use crate::credential_manager::CredentialManager;
 use crate::crypto::CryptoManager;
 use crate::types::{EncryptedSecrets, Permissions, Secret, SecretValue};
 use crate::ui::UI;
@@ -17,13 +18,20 @@ pub async fn execute(
     groups: Option<String>,
 ) -> Result<()> {
     let public_config = ConfigManager::load_public_config()?;
+    let cached_creds = CredentialManager::load_credentials()?;
 
-    let admin_password = UI::password("Admin password")?;
+    if !cached_creds.is_admin {
+        return Err(anyhow!(
+            "Only admins can add secrets. Use 'smolcase configure' to set up admin credentials."
+        ));
+    }
+
+    let admin_password = CredentialManager::get_admin_password(&cached_creds)?;
     if !CryptoManager::verify_password(&admin_password, &public_config.admin_key_hash)? {
         return Err(anyhow!("Invalid admin password"));
     }
 
-    let master_key = UI::password("Master decryption key")?;
+    let master_key = CredentialManager::get_master_key(&cached_creds)?;
     let (_, mut private_config) = ConfigManager::load_full_config(&master_key)?;
 
     let is_file = Path::new(&key).exists();
@@ -73,7 +81,7 @@ pub async fn execute(
         key: secret_key.clone(),
         created_at: Utc::now().to_rfc3339(),
         updated_at: Utc::now().to_rfc3339(),
-        created_by: "admin".to_string(),
+        created_by: cached_creds.username.unwrap_or_else(|| "admin".to_string()),
         permissions,
         is_file,
         file_path: if is_file { Some(key.clone()) } else { None },
@@ -85,7 +93,8 @@ pub async fn execute(
             secrets: Vec::new(),
         }
     } else {
-        let decrypted_data = CryptoManager::decrypt_data_with_salt(&private_config.encrypted_secrets, &master_key)?;
+        let decrypted_data =
+            CryptoManager::decrypt_data_with_salt(&private_config.encrypted_secrets, &master_key)?;
         serde_json::from_slice(&decrypted_data)?
     };
 
@@ -110,13 +119,14 @@ pub async fn execute(
 
     // Re-encrypt secret values
     let serialized_secrets = serde_json::to_vec(&existing_secrets)?;
-    private_config.encrypted_secrets = CryptoManager::encrypt_data_with_salt(&serialized_secrets, &master_key)?;
-    
+    private_config.encrypted_secrets =
+        CryptoManager::encrypt_data_with_salt(&serialized_secrets, &master_key)?;
+
     // Add secret metadata to private config
     private_config.secrets.insert(secret_key.clone(), secret);
 
     // Save everything
-                ConfigManager::save_config(&public_config, &private_config, &master_key)?;
+    ConfigManager::save_config(&public_config, &private_config, &master_key)?;
 
     UI::success(&format!("Secret '{}' added successfully!", secret_key));
 

@@ -1,7 +1,7 @@
 use crate::config::ConfigManager;
 use crate::crypto::CryptoManager;
 use crate::git::GitManager;
-use crate::types::{SmolcaseConfig, PrivateConfig, User, EncryptedData};
+use crate::types::{EncryptedData, PrivateConfig, SmolcaseConfig, User};
 use crate::ui::UI;
 use anyhow::{Result, anyhow};
 use chrono::Utc;
@@ -77,7 +77,7 @@ pub async fn execute(name: Option<String>, git: bool) -> Result<()> {
     };
 
     ConfigManager::create_config_dir()?;
-            ConfigManager::save_config(&public_config, &private_config, &master_key)?;
+    ConfigManager::save_config(&public_config, &private_config, &master_key)?;
 
     if git {
         UI::info("Initializing Git repository...");
