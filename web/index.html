@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>smolcase - Zero-Infrastructure Secret Management</title>
+    <meta name="description" content="Military-grade secret management with zero servers. Store encrypted secrets in Git repositories. Built for developers who value simplicity and security.">
+    <meta name="keywords" content="secret management, encryption, git, security, devops, zero infrastructure">
+    <meta property="og:title" content="smolcase - Zero-Infrastructure Secret Management">
+    <meta property="og:description" content="Military-grade secret management with zero servers. Store encrypted secrets in Git repositories.">
+    <meta property="og:type" content="website">
+    
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3QgeD0iMTAiIHk9IjE2IiB3aWR0aD0iMTIiIGhlaWdodD0iMTAiIHJ4PSIyIiBmaWxsPSIjRkY2QjM1Ii8+CjxwYXRoIGQ9Ik0xMiAxNlYxMkMxMiA5Ljc5MDg2IDEzLjc5MDkgOCAxNiA4VjhDMTguMjA5MSA4IDIwIDkuNzkwODYgMjAgMTJWMTYiIHN0cm9rZT0iI0ZGNkIzNSIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPGNpcmNsZSBjeD0iMTYiIGN5PSIyMCIgcj0iMS41IiBmaWxsPSIjMEEwQTBBIi8+CjxyZWN0IHg9IjE1LjUiIHk9IjIxIiB3aWR0aD0iMSIgaGVpZ2h0PSIyIiBmaWxsPSIjMEEwQTBBIi8+CjxjaXJjbGUgY3g9IjYiIGN5PSI2IiByPSIxIiBmaWxsPSIjRkY2QjM1IiBvcGFjaXR5PSIwLjMiLz4KPGNpcmNsZSBjeD0iMjYiIGN5PSI2IiByPSIxIiBmaWxsPSIjRkY2QjM1IiBvcGFjaXR5PSIwLjMiLz4KPGNpcmNsZSBjeD0iNiIgY3k9IjI2IiByPSIxIiBmaWxsPSIjRkY2QjM1IiBvcGFjaXR5PSIwLjMiLz4KPGNpcmNsZSBjeD0iMjYiIGN5PSIyNiIgcj0iMSIgZmlsbD0iI0ZGNkIzNSIgb3BhY2l0eT0iMC4zIi8+Cjwvc3ZnPg==">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --orange: #FF6B35;
+            --orange-dark: #E85A2B;
+            --black: #0A0A0A;
+            --black-light: #1A1A1A;
+            --gray: #808080;
+            --gray-light: #B8B8B8;
+            --white: #FFFFFF;
+            --green: #00FF41;
+            --red: #FF073A;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--black);
+            color: var(--white);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Typography */
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .text-orange { color: var(--orange); }
+        .text-gray { color: var(--gray); }
+        .text-green { color: var(--green); }
+
+        /* Layout */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid #333;
+            z-index: 100;
+            padding: 16px 0;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--white);
+            font-weight: 600;
+            font-size: 20px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 32px;
+        }
+
+        .nav-links a {
+            color: var(--gray);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--orange);
+        }
+
+        .install-btn {
+            background: var(--orange);
+            color: var(--black);
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .install-btn:hover {
+            background: var(--orange-dark);
+            transform: translateY(-1px);
+        }
+
+        /* Hero */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding-top: 120px;
+        }
+
+        .hero-content {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: clamp(48px, 8vw, 80px);
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, var(--white) 0%, var(--orange) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: 20px;
+            color: var(--gray);
+            margin-bottom: 48px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 64px;
+        }
+
+        .btn-primary {
+            background: var(--orange);
+            color: var(--black);
+            padding: 16px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover {
+            background: var(--orange-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--white);
+            padding: 16px 32px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--orange);
+            color: var(--orange);
+        }
+
+        /* Terminal */
+        .terminal-demo {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #0D1117;
+            border: 1px solid #21262D;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            background: var(--black-light);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .terminal-dot.red { background: var(--red); }
+        .terminal-dot.yellow { background: #FFD60A; }
+        .terminal-dot.green { background: var(--green); }
+
+        .terminal-title {
+            margin-left: 16px;
+            font-size: 12px;
+            color: var(--gray);
+        }
+
+        .terminal-body {
+            padding: 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            min-height: 300px;
+        }
+
+        .terminal-line {
+            margin-bottom: 8px;
+            opacity: 0;
+            animation: typeIn 0.5s ease forwards;
+        }
+
+        .terminal-line:nth-child(1) { animation-delay: 0.5s; }
+        .terminal-line:nth-child(2) { animation-delay: 1s; }
+        .terminal-line:nth-child(3) { animation-delay: 1.5s; }
+        .terminal-line:nth-child(4) { animation-delay: 2s; }
+        .terminal-line:nth-child(5) { animation-delay: 2.5s; }
+        .terminal-line:nth-child(6) { animation-delay: 3s; }
+        .terminal-line:nth-child(7) { animation-delay: 3.5s; }
+        .terminal-line:nth-child(8) { animation-delay: 4s; }
+
+        .prompt { color: var(--green); }
+        .command { color: var(--white); }
+        .output { color: var(--gray); margin-left: 16px; }
+        .success { color: var(--green); }
+        .warning { color: var(--orange); }
+
+        @keyframes typeIn {
+            to { opacity: 1; }
+        }
+
+        .cursor {
+            opacity: 1;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* Features */
+        .features {
+            padding: 120px 0;
+            background: var(--black);
+        }
+
+        .section-title {
+            font-size: 48px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+        }
+
+        .feature {
+            text-align: center;
+            padding: 40px 24px;
+            border: 1px solid #333;
+            border-radius: 12px;
+            background: var(--black-light);
+            transition: all 0.3s ease;
+        }
+
+        .feature:hover {
+            border-color: var(--orange);
+            background: rgba(255, 107, 53, 0.05);
+            transform: translateY(-4px);
+        }
+
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 24px;
+            display: block;
+        }
+
+        .feature h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .feature p {
+            color: var(--gray);
+            font-size: 16px;
+        }
+
+        /* Install Section */
+        .install {
+            padding: 120px 0;
+            text-align: center;
+        }
+
+        .install-title {
+            font-size: 40px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .install-subtitle {
+            font-size: 18px;
+            color: var(--gray);
+            margin-bottom: 48px;
+        }
+
+        .install-commands {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #0D1117;
+            border: 1px solid #21262D;
+            border-radius: 12px;
+            padding: 32px;
+            text-align: left;
+        }
+
+        .install-command {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .install-command .prompt {
+            color: var(--green);
+        }
+
+        .install-command .command {
+            color: var(--white);
+        }
+
+        .copy-btn {
+            background: var(--orange);
+            color: var(--black);
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid #333;
+            padding: 40px 0;
+            text-align: center;
+            color: var(--gray);
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-bottom: 24px;
+        }
+
+        .footer-content a {
+            color: var(--gray);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-content a:hover {
+            color: var(--orange);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-content {
+                flex-direction: column;
+                gap: 16px;
+            }
+        }
+
+        /* Scroll reveal */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease;
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <nav class="container">
+            <a href="#" class="logo">
+                <div class="logo-icon">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Modern lock body -->
+                        <rect x="10" y="16" width="12" height="10" rx="2" fill="#FF6B35"/>
+                        
+                        <!-- Lock shackle -->
+                        <path d="M12 16V12C12 9.79086 13.7909 8 16 8V8C18.2091 8 20 9.79086 20 12V16" stroke="#FF6B35" stroke-width="3" stroke-linecap="round"/>
+                        
+                        <!-- Keyhole -->
+                        <circle cx="16" cy="20" r="1.5" fill="#0A0A0A"/>
+                        <rect x="15.5" y="21" width="1" height="2" fill="#0A0A0A"/>
+                        
+                        <!-- Hash pattern overlay on lock -->
+                        <line x1="11" y1="18" x2="21" y2="18" stroke="#0A0A0A" stroke-width="0.5" opacity="0.3"/>
+                        <line x1="11" y1="22" x2="21" y2="22" stroke="#0A0A0A" stroke-width="0.5" opacity="0.3"/>
+                        <line x1="11" y1="24" x2="21" y2="24" stroke="#0A0A0A" stroke-width="0.5" opacity="0.3"/>
+                        
+                        <!-- Binary dots in corners -->
+                        <circle cx="4" cy="4" r="0.5" fill="#FF6B35" opacity="0.4"/>
+                        <circle cx="7" cy="4" r="0.5" fill="#FF6B35" opacity="0.6"/>
+                        <circle cx="28" cy="4" r="0.5" fill="#FF6B35" opacity="0.4"/>
+                        <circle cx="25" cy="4" r="0.5" fill="#FF6B35" opacity="0.6"/>
+                        
+                        <circle cx="4" cy="28" r="0.5" fill="#FF6B35" opacity="0.6"/>
+                        <circle cx="7" cy="28" r="0.5" fill="#FF6B35" opacity="0.4"/>
+                        <circle cx="28" cy="28" r="0.5" fill="#FF6B35" opacity="0.6"/>
+                        <circle cx="25" cy="28" r="0.5" fill="#FF6B35" opacity="0.4"/>
+                        
+                        <!-- Subtle encryption traces -->
+                        <path d="M2 16 L6 16" stroke="#FF6B35" stroke-width="1" opacity="0.2"/>
+                        <path d="M26 16 L30 16" stroke="#FF6B35" stroke-width="1" opacity="0.2"/>
+                        <circle cx="2" cy="16" r="0.5" fill="#FF6B35" opacity="0.3"/>
+                        <circle cx="30" cy="16" r="0.5" fill="#FF6B35" opacity="0.3"/>
+                    </svg>
+                </div>
+                <span class="mono">smolcase</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#install">Install</a></li>
+                <li><a href="https://github.com/simplysabir/smolcase" target="_blank">GitHub</a></li>
+                <li><a href="https://github.com/simplysabir/smolcase#readme" target="_blank">Docs</a></li>
+            </ul>
+            <a href="#install" class="install-btn mono">Install</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container">
+                <div class="hero-content">
+                    <h1>Zero-Infrastructure<br>Secret Management</h1>
+                    <p class="hero-subtitle">
+                        Military-grade encryption meets Git workflow. Store secrets in repositories with zero servers, zero complexity.
+                    </p>
+                    
+                    <div class="hero-buttons">
+                        <a href="#install" class="btn-primary">
+                            <span>⚡</span>
+                            Quick Start
+                        </a>
+                        <a href="https://github.com/simplysabir/smolcase" class="btn-secondary" target="_blank">
+                            View Source
+                        </a>
+                    </div>
+
+                    <div class="terminal-demo">
+                        <div class="terminal-header">
+                            <div class="terminal-dot red"></div>
+                            <div class="terminal-dot yellow"></div>
+                            <div class="terminal-dot green"></div>
+                            <div class="terminal-title mono">Terminal</div>
+                        </div>
+                        <div class="terminal-body">
+                            <div class="terminal-line">
+                                <span class="prompt">$</span> <span class="command">cargo install smolcase</span>
+                            </div>
+                            <div class="terminal-line output success">✓ Installed smolcase v1.3.0</div>
+                            
+                            <div class="terminal-line">
+                                <span class="prompt">$</span> <span class="command">smolcase init</span>
+                            </div>
+                            <div class="terminal-line output">🔐 Initialize Smolcase Project</div>
+                            <div class="terminal-line output">🔑 Master key: <span style="color: #FF6B35; font-weight: bold;">Kx9#mP2$vB8@nQ5&</span></div>
+                            <div class="terminal-line output success">✓ Project created successfully</div>
+                            
+                            <div class="terminal-line">
+                                <span class="prompt">$</span> <span class="command">smolcase add DATABASE_URL "postgresql://..."</span>
+                            </div>
+                            <div class="terminal-line output">🔒 Encrypting with ChaCha20-Poly1305...</div>
+                            <div class="terminal-line output success">✓ Secret encrypted and stored</div>
+                            
+                            <div class="terminal-line">
+                                <span class="prompt">$</span> <span class="command">smolcase run -- npm start</span>
+                            </div>
+                            <div class="terminal-line output">🔐 Decrypting 3 secrets...</div>
+                            <div class="terminal-line output">🚀 Starting with env loaded</div>
+                            <div class="terminal-line">
+                                <span class="prompt">$</span> <span class="cursor">_</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="features" id="features">
+            <div class="container">
+                <h2 class="section-title reveal">Why smolcase?</h2>
+                
+                <div class="features-grid">
+                    <div class="feature reveal">
+                        <span class="feature-icon">🔒</span>
+                        <h3>Military-Grade Encryption</h3>
+                        <p>ChaCha20-Poly1305 with Argon2id key derivation. Zero-knowledge architecture - even admins can't see your secrets.</p>
+                    </div>
+                    
+                    <div class="feature reveal">
+                        <span class="feature-icon">⚡</span>
+                        <h3>Zero Infrastructure</h3>
+                        <p>No servers, no databases, no vendor lock-in. Just Git repositories you already use everywhere.</p>
+                    </div>
+                    
+                    <div class="feature reveal">
+                        <span class="feature-icon">👥</span>
+                        <h3>Team Ready</h3>
+                        <p>Granular permissions, groups, role separation. Interactive setup gets teams onboarded in seconds.</p>
+                    </div>
+                    
+                    <div class="feature reveal">
+                        <span class="feature-icon">🚀</span>
+                        <h3>Developer First</h3>
+                        <p>Run commands with secrets injected. Process config templates. Cache credentials. Zero friction workflow.</p>
+                    </div>
+                    
+                    <div class="feature reveal">
+                        <span class="feature-icon">📁</span>
+                        <h3>File Encryption</h3>
+                        <p>Encrypt .env files, certificates, configs. Any file type gets the same military-grade protection.</p>
+                    </div>
+                    
+                    <div class="feature reveal">
+                        <span class="feature-icon">🌐</span>
+                        <h3>Git Native</h3>
+                        <p>Works with GitHub, GitLab, any Git host. Version control your security. Review access like code.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="install" id="install">
+            <div class="container">
+                <h2 class="install-title reveal">Get Started in 30 Seconds</h2>
+                <p class="install-subtitle reveal">One command to install. Interactive setup guides you through everything.</p>
+                
+                <div class="install-commands reveal">
+                    <div class="install-command">
+                        <span class="prompt">$</span>
+                        <span class="command">cargo install smolcase</span>
+                        <button class="copy-btn" onclick="copyToClipboard('cargo install smolcase')">Copy</button>
+                    </div>
+                    
+                    <div class="install-command">
+                        <span class="prompt">$</span>
+                        <span class="command">smolcase init</span>
+                        <button class="copy-btn" onclick="copyToClipboard('smolcase init')">Copy</button>
+                    </div>
+                    
+                    <div class="install-command">
+                        <span class="prompt">$</span>
+                        <span class="command">smolcase tutorial</span>
+                        <button class="copy-btn" onclick="copyToClipboard('smolcase tutorial')">Copy</button>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 48px;">
+                    <a href="https://github.com/simplysabir/smolcase/releases" class="btn-primary" target="_blank">
+                        Download Binary
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <a href="https://github.com/simplysabir/smolcase" target="_blank">GitHub</a>
+                <a href="https://docs.smolcase.dev" target="_blank">Documentation</a>
+                <a href="https://github.com/simplysabir/smolcase/issues" target="_blank">Issues</a>
+                <a href="https://github.com/simplysabir/smolcase/releases" target="_blank">Releases</a>
+            </div>
+            <p>&copy; 2025 smolcase. MIT License.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Scroll reveal animation
+        function reveal() {
+            const reveals = document.querySelectorAll('.reveal');
+            
+            for (let i = 0; i < reveals.length; i++) {
+                const windowHeight = window.innerHeight;
+                const elementTop = reveals[i].getBoundingClientRect().top;
+                const elementVisible = 150;
+                
+                if (elementTop < windowHeight - elementVisible) {
+                    reveals[i].classList.add('active');
+                }
+            }
+        }
+
+        window.addEventListener('scroll', reveal);
+        reveal(); // Check on load
+
+        // Copy to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                // Show feedback
+                event.target.textContent = 'Copied!';
+                setTimeout(() => {
+                    event.target.textContent = 'Copy';
+                }, 2000);
+            });
+        }
+
+        // Smooth scrolling
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
