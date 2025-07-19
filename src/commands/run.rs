@@ -5,12 +5,16 @@ use crate::types::EncryptedSecrets;
 use crate::ui::UI;
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;
-use std::fs;
-use std::path::PathBuf;
+use std::process::Command;
 
-pub async fn execute(format: String, output: Option<PathBuf>, env: Option<String>) -> Result<()> {
+pub async fn execute(env: Option<String>, command: Vec<String>) -> Result<()> {
+    if command.is_empty() {
+        return Err(anyhow!(
+            "No command specified. Use: smolcase run -- <command>"
+        ));
+    }
+
     let cached_creds = CredentialManager::load_credentials()?;
-
     let user_password = CredentialManager::get_user_password(&cached_creds)?;
     let master_key = CredentialManager::get_master_key(&cached_creds)?;
 
@@ -20,7 +24,6 @@ pub async fn execute(format: String, output: Option<PathBuf>, env: Option<String
     let mut user_found = false;
     let mut username = String::new();
 
-    // Try to use cached username first
     if let Some(cached_username) = &cached_creds.username {
         if let Some(user) = private_config.users.get(cached_username) {
             if CryptoManager::verify_password(&user_password, &user.password_hash)? {
@@ -30,7 +33,6 @@ pub async fn execute(format: String, output: Option<PathBuf>, env: Option<String
         }
     }
 
-    // If cached username didn't work, try all users
     if !user_found {
         for (uname, user) in &private_config.users {
             if CryptoManager::verify_password(&user_password, &user.password_hash)? {
@@ -45,7 +47,7 @@ pub async fn execute(format: String, output: Option<PathBuf>, env: Option<String
         return Err(anyhow!("Invalid password"));
     }
 
-    let mut accessible_secrets = Vec::new();
+    let mut env_vars = HashMap::new();
 
     if !private_config.encrypted_secrets.is_empty() {
         let decrypted_data =
@@ -65,62 +67,46 @@ pub async fn execute(format: String, output: Option<PathBuf>, env: Option<String
                     });
 
                 if has_permission && !secret_value.is_file {
-                    // Filter by environment if specified
-                    if let Some(env_filter) = &env {
-                        if secret_value
-                            .key
-                            .to_lowercase()
-                            .contains(&env_filter.to_lowercase())
-                            || secret_value
-                                .key
-                                .ends_with(&format!("_{}", env_filter.to_uppercase()))
-                        {
-                            accessible_secrets
-                                .push((secret_value.key.clone(), secret_value.value.clone()));
-                        }
-                    } else {
-                        accessible_secrets
-                            .push((secret_value.key.clone(), secret_value.value.clone()));
-                    }
+                    env_vars.insert(secret_value.key.clone(), secret_value.value.clone());
                 }
             }
         }
     }
 
-    if let Some(env_filter) = &env {
-        if accessible_secrets.is_empty() {
-            UI::info(&format!("No secrets found for environment: {}", env_filter));
-        } else {
-            UI::info(&format!(
-                "Found {} secrets for environment: {}",
-                accessible_secrets.len(),
-                env_filter
-            ));
-        }
+    if env_vars.is_empty() {
+        UI::warning("No accessible secrets found");
+    } else {
+        UI::info(&format!("Running command with {} secrets", env_vars.len()));
     }
 
-    let content = match format.as_str() {
-        "env" => accessible_secrets
-            .iter()
-            .map(|(k, v)| format!("{}={}", k.to_uppercase(), v))
-            .collect::<Vec<_>>()
-            .join("\n"),
-        "json" => {
-            let map: HashMap<String, String> = accessible_secrets.into_iter().collect();
-            serde_json::to_string_pretty(&map)?
-        }
-        "yaml" => {
-            let map: HashMap<String, String> = accessible_secrets.into_iter().collect();
-            serde_yaml::to_string(&map)?
-        }
-        _ => return Err(anyhow!("Unsupported format: {}", format)),
+    let program = &command[0];
+    let args = if command.len() > 1 {
+        &command[1..]
+    } else {
+        &[]
     };
 
-    if let Some(output_path) = output {
-        fs::write(&output_path, content)?;
-        UI::success(&format!("Exported to {}", output_path.display()));
-    } else {
-        println!("{}", content);
+    let mut cmd = Command::new(program);
+    cmd.args(args);
+
+    // Add secrets as environment variables
+    for (key, value) in &env_vars {
+        cmd.env(key, value);
+    }
+
+    // Preserve existing environment
+    cmd.envs(std::env::vars());
+
+    let status = cmd
+        .status()
+        .map_err(|e| anyhow!("Failed to execute command '{}': {}", program, e))?;
+
+    if !status.success() {
+        if let Some(code) = status.code() {
+            std::process::exit(code);
+        } else {
+            std::process::exit(1);
+        }
     }
 
     Ok(())

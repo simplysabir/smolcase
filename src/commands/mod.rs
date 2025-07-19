@@ -1,4 +1,5 @@
 pub mod add;
+pub mod apply;
 pub mod configure;
 pub mod export;
 pub mod get;
@@ -8,7 +9,9 @@ pub mod init;
 pub mod list;
 pub mod logout;
 pub mod remove;
+pub mod run;
 pub mod setup;
 pub mod status;
 pub mod sync;
+pub mod tutorial;
 pub mod user;
