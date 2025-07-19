@@ -1,3 +1,40 @@
+<div align="center">
+<svg width="64" height="64" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Modern lock body -->
+  <rect x="10" y="16" width="12" height="10" rx="2" fill="#FF6B35"/>
+  
+  <!-- Lock shackle -->
+  <path d="M12 16V12C12 9.79086 13.7909 8 16 8V8C18.2091 8 20 9.79086 20 12V16" stroke="#FF6B35" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Keyhole -->
+  <circle cx="16" cy="20" r="1.5" fill="#0A0A0A"/>
+  <rect x="15.5" y="21" width="1" height="2" fill="#0A0A0A"/>
+  
+  <!-- Hash pattern overlay -->
+  <line x1="11" y1="18" x2="21" y2="18" stroke="#0A0A0A" stroke-width="0.5" opacity="0.3"/>
+  <line x1="11" y1="22" x2="21" y2="22" stroke="#0A0A0A" stroke-width="0.5" opacity="0.3"/>
+  <line x1="11" y1="24" x2="21" y2="24" stroke="#0A0A0A" stroke-width="0.5" opacity="0.3"/>
+  
+  <!-- Binary dots in corners -->
+  <circle cx="4" cy="4" r="0.5" fill="#FF6B35" opacity="0.4"/>
+  <circle cx="7" cy="4" r="0.5" fill="#FF6B35" opacity="0.6"/>
+  <circle cx="28" cy="4" r="0.5" fill="#FF6B35" opacity="0.4"/>
+  <circle cx="25" cy="4" r="0.5" fill="#FF6B35" opacity="0.6"/>
+  
+  <circle cx="4" cy="28" r="0.5" fill="#FF6B35" opacity="0.6"/>
+  <circle cx="7" cy="28" r="0.5" fill="#FF6B35" opacity="0.4"/>
+  <circle cx="28" cy="28" r="0.5" fill="#FF6B35" opacity="0.6"/>
+  <circle cx="25" cy="28" r="0.5" fill="#FF6B35" opacity="0.4"/>
+  
+  <!-- Encryption traces -->
+  <path d="M2 16 L6 16" stroke="#FF6B35" stroke-width="1" opacity="0.2"/>
+  <path d="M26 16 L30 16" stroke="#FF6B35" stroke-width="1" opacity="0.2"/>
+  <circle cx="2" cy="16" r="0.5" fill="#FF6B35" opacity="0.3"/>
+  <circle cx="30" cy="16" r="0.5" fill="#FF6B35" opacity="0.3"/>
+</svg>
+
+</div>
+
 # 🔐 smolcase
 
 **Zero-infrastructure secret management that actually works**
