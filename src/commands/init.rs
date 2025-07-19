@@ -36,13 +36,9 @@ pub async fn execute(name: Option<String>, git: bool, non_interactive: bool) -> 
             .ok()
             .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
             .unwrap_or_else(|| "My Secrets".to_string());
-
+        
         let input = UI::input(&format!("Project name [{}]", default_name))?;
-        if input.is_empty() {
-            default_name
-        } else {
-            input
-        }
+        if input.is_empty() { default_name } else { input }
     };
 
     // Step 2: Git repository
@@ -68,7 +64,7 @@ pub async fn execute(name: Option<String>, git: bool, non_interactive: bool) -> 
 
     let admin_username = UI::input("Admin username")?;
     let admin_email = UI::input_optional("Admin email")?;
-
+    
     let admin_password = loop {
         let password = UI::password("Admin password (12+ characters)")?;
         if password.len() < 12 {
@@ -83,13 +79,13 @@ pub async fn execute(name: Option<String>, git: bool, non_interactive: bool) -> 
     // Step 4: Master key
     UI::header("🗝️  Master Encryption Key");
     UI::info("This key encrypts all secrets. Share it securely with your team!");
-
+    
     let master_key = if UI::confirm("Generate a secure master key automatically?")? {
         let generated = CryptoManager::generate_password() + &CryptoManager::generate_password();
         UI::success("Generated master key:");
         println!("{}", generated.bold().yellow());
         UI::warning("⚠️  SAVE THIS KEY! You'll need it to decrypt secrets.");
-
+        
         if !UI::confirm("Continue with this master key?")? {
             loop {
                 let key = UI::password("Enter your own master key (12+ characters)")?;
@@ -157,7 +153,7 @@ pub async fn execute(name: Option<String>, git: bool, non_interactive: bool) -> 
     if use_git {
         UI::info("Setting up Git repository...");
         let current_dir = std::env::current_dir()?;
-
+        
         if !GitManager::is_git_repo(&current_dir) {
             GitManager::init_repo(&current_dir)?;
         }
@@ -174,53 +170,39 @@ pub async fn execute(name: Option<String>, git: bool, non_interactive: bool) -> 
                     .args(&["remote", "add", "origin", &remote_url])
                     .output()
                     .map_err(|e| anyhow!("Failed to add remote: {}", e))?;
-
+                
                 UI::success("Git remote added!");
                 UI::info("Run 'git push -u origin main' to push to remote");
             }
         }
     }
 
-    // Step 5: First secret (optional)
-    if UI::confirm("🎯 Add your first secret now?")? {
-        UI::info("Let's add a sample secret to get you started!");
-
-        let secret_key = UI::input("Secret name (e.g., DATABASE_URL, API_KEY)")?;
-        let secret_value = UI::password("Secret value")?;
-
-        if !secret_key.is_empty() && !secret_value.is_empty() {
-            // Add the secret
-            crate::commands::add::execute(secret_key.clone(), Some(secret_value), None, None)
-                .await?;
-            UI::success(&format!("Added secret: {}", secret_key));
-        }
-    }
+    // Step 5: Next steps guidance
+    UI::header("🎯 Next Steps");
+    UI::info("Your project is ready! Here's what to do next:");
 
     // Final success message
     println!("\n{}", "🎉 Project Setup Complete!".bold().green());
     println!();
-
+    
     UI::table_row("Project", &project_name);
     UI::table_row("Admin", &admin_username);
     UI::table_row("Git", if use_git { "Enabled" } else { "Disabled" });
-
+    
     println!();
-    println!(
-        "{}",
-        "🔑 IMPORTANT - Save these credentials:".bold().yellow()
-    );
+    println!("{}", "🔑 IMPORTANT - Save these credentials:".bold().yellow());
     println!("   Master key: {}", master_key.bold());
     println!("   Admin password: [as entered]");
     println!();
-
+    
     println!("{}", "🚀 Next steps:".bold().cyan());
-    println!("   • Run 'smolcase configure' to cache credentials");
-    println!("   • Run 'smolcase add KEY value' to add secrets");
-    println!("   • Run 'smolcase tutorial' for guided walkthrough");
+    println!("   1. Run 'smolcase configure' to cache credentials");
+    println!("   2. Run 'smolcase add KEY value' to add your first secret");
+    println!("   3. Run 'smolcase tutorial' for guided walkthrough");
     if use_git {
-        println!("   • Push to remote: 'git push -u origin main'");
+        println!("   4. Push to remote: 'git push -u origin main'");
     }
-    println!("   • Share master key securely with your team");
+    println!("   5. Share master key securely with your team");
 
     Ok(())
 }
@@ -276,7 +258,7 @@ async fn execute_simple(name: Option<String>, git: bool) -> Result<()> {
     };
 
     let mut users = HashMap::new();
-    users.insert(admin_username, admin_user);
+    users.insert(admin_username.clone(), admin_user);
 
     let private_config = PrivateConfig {
         users,
