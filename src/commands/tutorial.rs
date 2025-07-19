@@ -1,4 +1,4 @@
-use crate::commands::{init, add, export, run};
+use crate::commands::{add, export, init, run};
 use crate::ui::UI;
 use anyhow::Result;
 use colored::*;
@@ -6,9 +6,15 @@ use std::io::{self, Write};
 
 pub async fn execute() -> Result<()> {
     UI::print_banner();
-    
-    println!("\n{}", "🎯 Welcome to the smolcase Tutorial!".bold().green());
-    println!("{}", "This interactive tutorial will walk you through setting up and using smolcase.".dimmed());
+
+    println!(
+        "\n{}",
+        "🎯 Welcome to the smolcase Tutorial!".bold().green()
+    );
+    println!(
+        "{}",
+        "This interactive tutorial will walk you through setting up and using smolcase.".dimmed()
+    );
     println!();
 
     // Step 1: Introduction
@@ -27,7 +33,7 @@ pub async fn execute() -> Result<()> {
         println!("We'll create a new smolcase project.");
         println!("This creates:");
         println!("  • .smolcase.yml (encrypted configuration)");
-        println!("  • .smolcase/ directory (local cache)");  
+        println!("  • .smolcase/ directory (local cache)");
         println!("  • Git repository (optional)");
         println!();
         println!("After init, you'll need to run 'configure' to cache credentials.");
@@ -41,12 +47,12 @@ pub async fn execute() -> Result<()> {
         }
     } else {
         println!("\n{}", "Let's initialize a new project...".cyan());
-        
+
         // Run init command
         init::execute(Some("Tutorial Project".to_string()), true, false).await?;
-        
+
         UI::success("Project initialized! 🎉");
-        
+
         println!("\n{}", "Now let's configure credentials...".cyan());
         // Configure credentials for the tutorial
         crate::commands::configure::execute().await?;
@@ -68,7 +74,8 @@ pub async fn execute() -> Result<()> {
         Some("sk-tutorial-1234567890abcdef".to_string()),
         None,
         None,
-    ).await?;
+    )
+    .await?;
 
     // Step 4: Viewing secrets
     tutorial_step(4, "Viewing your secrets", || {
@@ -104,11 +111,16 @@ pub async fn execute() -> Result<()> {
         println!("Let's try running a simple command:");
     })?;
 
-    println!("\n{}", "Running 'env | grep TUTORIAL' with secrets...".cyan());
-    run::execute(None, vec!["env".to_string()]).await.unwrap_or_else(|_| {
-        // Command might fail on some systems, that's ok for tutorial
-        UI::info("Command executed (output may vary by system)");
-    });
+    println!(
+        "\n{}",
+        "Running 'env | grep TUTORIAL' with secrets...".cyan()
+    );
+    run::execute(None, vec!["env".to_string()])
+        .await
+        .unwrap_or_else(|_| {
+            // Command might fail on some systems, that's ok for tutorial
+            UI::info("Command executed (output may vary by system)");
+        });
 
     // Step 7: Team collaboration
     tutorial_step(7, "Team collaboration", || {
@@ -166,42 +178,42 @@ pub async fn execute() -> Result<()> {
     println!();
     println!("You now know how to:");
     println!("  ✓ Initialize smolcase projects");
-    println!("  ✓ Add and manage secrets");  
+    println!("  ✓ Add and manage secrets");
     println!("  ✓ Export secrets for development");
     println!("  ✓ Run commands with secrets");
     println!("  ✓ Collaborate with your team");
     println!();
-    
+
     println!("{}", "Next steps:".bold().cyan());
     println!("  • Run 'smolcase --help' to see all commands");
     println!("  • Check 'smolcase status' for project overview");
     println!("  • Visit https://github.com/simplysabir/smolcase for docs");
     println!();
-    
+
     if UI::confirm("Would you like to see the project status?")? {
         println!();
         crate::commands::status::execute().await?;
     }
 
     UI::success("Happy secret managing! 🔐");
-    
+
     Ok(())
 }
 
-fn tutorial_step<F>(step: u8, title: &str, content: F) -> io::Result<()> 
-where 
+fn tutorial_step<F>(step: u8, title: &str, content: F) -> io::Result<()>
+where
     F: FnOnce(),
 {
     println!("\n{}", format!("Step {}: {}", step, title).bold().cyan());
     println!("{}", "─".repeat(50).cyan());
-    
+
     content();
-    
+
     print!("\n{} ", "Press Enter to continue...".dimmed());
     io::stdout().flush()?;
-    
+
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
-    
+
     Ok(())
 }
