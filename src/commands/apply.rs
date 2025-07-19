@@ -4,13 +4,21 @@ use crate::crypto::CryptoManager;
 use crate::types::EncryptedSecrets;
 use crate::ui::UI;
 use anyhow::{Result, anyhow};
+use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-pub async fn execute(format: String, output: Option<PathBuf>, env: Option<String>) -> Result<()> {
-    let cached_creds = CredentialManager::load_credentials()?;
+pub async fn execute(
+    template: PathBuf,
+    output: Option<PathBuf>,
+    env: Option<String>,
+) -> Result<()> {
+    if !template.exists() {
+        return Err(anyhow!("Template file not found: {}", template.display()));
+    }
 
+    let cached_creds = CredentialManager::load_credentials()?;
     let user_password = CredentialManager::get_user_password(&cached_creds)?;
     let master_key = CredentialManager::get_master_key(&cached_creds)?;
 
@@ -20,7 +28,6 @@ pub async fn execute(format: String, output: Option<PathBuf>, env: Option<String
     let mut user_found = false;
     let mut username = String::new();
 
-    // Try to use cached username first
     if let Some(cached_username) = &cached_creds.username {
         if let Some(user) = private_config.users.get(cached_username) {
             if CryptoManager::verify_password(&user_password, &user.password_hash)? {
@@ -30,7 +37,6 @@ pub async fn execute(format: String, output: Option<PathBuf>, env: Option<String
         }
     }
 
-    // If cached username didn't work, try all users
     if !user_found {
         for (uname, user) in &private_config.users {
             if CryptoManager::verify_password(&user_password, &user.password_hash)? {
@@ -45,7 +51,7 @@ pub async fn execute(format: String, output: Option<PathBuf>, env: Option<String
         return Err(anyhow!("Invalid password"));
     }
 
-    let mut accessible_secrets = Vec::new();
+    let mut secrets_map = HashMap::new();
 
     if !private_config.encrypted_secrets.is_empty() {
         let decrypted_data =
@@ -65,62 +71,50 @@ pub async fn execute(format: String, output: Option<PathBuf>, env: Option<String
                     });
 
                 if has_permission && !secret_value.is_file {
-                    // Filter by environment if specified
-                    if let Some(env_filter) = &env {
-                        if secret_value
-                            .key
-                            .to_lowercase()
-                            .contains(&env_filter.to_lowercase())
-                            || secret_value
-                                .key
-                                .ends_with(&format!("_{}", env_filter.to_uppercase()))
-                        {
-                            accessible_secrets
-                                .push((secret_value.key.clone(), secret_value.value.clone()));
-                        }
-                    } else {
-                        accessible_secrets
-                            .push((secret_value.key.clone(), secret_value.value.clone()));
-                    }
+                    secrets_map.insert(secret_value.key.clone(), secret_value.value.clone());
                 }
             }
         }
     }
 
-    if let Some(env_filter) = &env {
-        if accessible_secrets.is_empty() {
-            UI::info(&format!("No secrets found for environment: {}", env_filter));
+    let template_content = fs::read_to_string(&template)
+        .map_err(|e| anyhow!("Failed to read template file: {}", e))?;
+
+    // Replace {{SECRET_NAME}} with actual secret values
+    let re = Regex::new(r"\{\{([A-Za-z0-9_]+)\}\}")
+        .map_err(|e| anyhow!("Failed to create regex: {}", e))?;
+
+    let mut missing_secrets = Vec::new();
+    let processed_content = re.replace_all(&template_content, |caps: &regex::Captures| {
+        let secret_name = &caps[1];
+        if let Some(secret_value) = secrets_map.get(secret_name) {
+            secret_value.clone()
         } else {
-            UI::info(&format!(
-                "Found {} secrets for environment: {}",
-                accessible_secrets.len(),
-                env_filter
-            ));
+            missing_secrets.push(secret_name.to_string());
+            format!("{{{{MISSING:{}}}}}", secret_name)
         }
+    });
+
+    if !missing_secrets.is_empty() {
+        UI::warning(&format!("Missing secrets: {}", missing_secrets.join(", ")));
+        UI::info("These will be left as {{MISSING:SECRET_NAME}} in the output");
     }
 
-    let content = match format.as_str() {
-        "env" => accessible_secrets
-            .iter()
-            .map(|(k, v)| format!("{}={}", k.to_uppercase(), v))
-            .collect::<Vec<_>>()
-            .join("\n"),
-        "json" => {
-            let map: HashMap<String, String> = accessible_secrets.into_iter().collect();
-            serde_json::to_string_pretty(&map)?
-        }
-        "yaml" => {
-            let map: HashMap<String, String> = accessible_secrets.into_iter().collect();
-            serde_yaml::to_string(&map)?
-        }
-        _ => return Err(anyhow!("Unsupported format: {}", format)),
-    };
+    let result = processed_content.to_string();
 
     if let Some(output_path) = output {
-        fs::write(&output_path, content)?;
-        UI::success(&format!("Exported to {}", output_path.display()));
+        fs::write(&output_path, &result)
+            .map_err(|e| anyhow!("Failed to write output file: {}", e))?;
+
+        UI::success(&format!("Template applied to {}", output_path.display()));
+
+        if !missing_secrets.is_empty() {
+            UI::warning(&format!("{} secrets were missing", missing_secrets.len()));
+        } else {
+            UI::info(&format!("Substituted {} secrets", secrets_map.len()));
+        }
     } else {
-        println!("{}", content);
+        println!("{}", result);
     }
 
     Ok(())

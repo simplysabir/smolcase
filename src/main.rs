@@ -16,7 +16,7 @@ use commands::*;
 #[derive(Parser)]
 #[command(name = "smolcase")]
 #[command(about = "Zero-infrastructure secret management for development teams.")]
-#[command(version = "1.2.0")]
+#[command(version = "1.3.0")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -32,7 +32,12 @@ enum Commands {
         /// Initialize with Git repository
         #[arg(short, long)]
         git: bool,
+        /// Skip interactive prompts
+        #[arg(long)]
+        non_interactive: bool,
     },
+    /// Interactive guided tutorial for new users
+    Tutorial,
     /// Set up local credentials (run once to cache passwords)
     Configure,
     /// Clear cached credentials
@@ -62,6 +67,26 @@ enum Commands {
         /// Secret key
         key: String,
     },
+    /// Run command with secrets as environment variables
+    Run {
+        /// Environment to use (optional)
+        #[arg(short, long)]
+        env: Option<String>,
+        /// Command to execute
+        #[arg(last = true)]
+        command: Vec<String>,
+    },
+    /// Apply template with secret substitution
+    Apply {
+        /// Template file path
+        template: PathBuf,
+        /// Output file (stdout if not specified)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+        /// Environment to use (optional)
+        #[arg(short, long)]
+        env: Option<String>,
+    },
     /// Set up user access for a repository
     Setup {
         /// Repository URL or path
@@ -86,6 +111,9 @@ enum Commands {
         /// Output file (stdout if not specified)
         #[arg(short, long)]
         output: Option<PathBuf>,
+        /// Environment to use (optional)
+        #[arg(short, long)]
+        env: Option<String>,
     },
     /// Import secrets from a file
     Import {
@@ -140,8 +168,13 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Init { name, git } => init::execute(name, git).await,
+        Commands::Init {
+            name,
+            git,
+            non_interactive,
+        } => init::execute(name, git, non_interactive).await,
         Commands::Configure => configure::execute().await,
+        Commands::Tutorial => tutorial::execute().await,
         Commands::Logout => logout::execute().await,
         Commands::Add {
             key,
@@ -152,10 +185,20 @@ async fn main() -> Result<()> {
         Commands::Remove { key } => remove::execute(key).await,
         Commands::List => list::execute().await,
         Commands::Get { key } => get::execute(key).await,
+        Commands::Run { env, command } => run::execute(env, command).await,
+        Commands::Apply {
+            template,
+            output,
+            env,
+        } => apply::execute(template, output, env).await,
         Commands::Setup { repo } => setup::execute(repo).await,
         Commands::User { action } => user::execute(action).await,
         Commands::Group { action } => group::execute(action).await,
-        Commands::Export { format, output } => export::execute(format, output).await,
+        Commands::Export {
+            format,
+            output,
+            env,
+        } => export::execute(format, output, env).await,
         Commands::Import { file, format } => import::execute(file, format).await,
         Commands::Sync => sync::execute().await,
         Commands::Status => status::execute().await,
